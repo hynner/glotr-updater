@@ -1,0 +1,39 @@
+#glotr-menu
+{
+	background: #000;
+	width: 640px;
+	border: 1px solid lime;
+	padding: 10px;
+}
+#glotr-menu h1
+{
+	font-size: 1.2em;
+	text-align: center;
+	font-weight: bold;
+}
+#glotr-menu select
+{
+	visibility: visible;
+}
+#glotr-menu fieldset
+{
+	border: 1px solid #fff;
+}
+#glotr-menu legend
+{
+	margin-left: 1em;
+	padding: 0 0.2em;
+}
+#glotr-menu table
+{
+	width: 100%;
+	padding: 1em;
+}
+.glotr-label
+{
+	width: 20%;
+}
+#glotr-menu input[type=text]
+{
+	width: 300px;
+}

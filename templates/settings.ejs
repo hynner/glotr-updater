@@ -1,0 +1,35 @@
+<fieldset>
+	<legend><%= title %></legend>
+	<input type='hidden' name="glotr-id" id="glotr-id" value="<%= (data.id_glotr) ? data.id_glotr : 0 %>" />
+	<table>
+		<tr>
+			<td class="glotr-label">Name</td>
+			<td>
+				<input type="text" name="glotr-name" id="glotr-name" value="<%= data.name %>" />
+			</td>
+		</tr>
+		<tr>
+			<td>URL</td>
+			<td>
+				<input type="text" name="glotr-url" id="glotr-url" value="<%= data.url %>" />
+			</td>
+		</tr>
+		<tr>
+			<td>Username</td>
+			<td>
+				<input type="text" name="glotr-username" id="glotr-username" value="<%= data.username %>" />
+			</td>
+		</tr>
+		<tr>
+			<td>API key</td>
+			<td>
+				<input type="text" name="glotr-api-key" id="glotr-api-key" value="<%= data.api_key %>" />
+			</td>
+		</tr>
+		<tr>
+			<td colspan="2">
+				<input type="submit" id="glotr-save" value="save"/>
+			</td>
+		</tr>
+	</table>
+</fieldset>

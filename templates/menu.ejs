@@ -1,0 +1,21 @@
+<div id="glotr-menu">
+	<h1><%= title %></h1>
+	<form id="glotr-form" action="">
+		<div>
+			<select name="glotr-current" id="glotr-current">
+				<option value="0">--- New GLOTR --- </option>
+				<% for(var i = 0; i < glotrs.length; i++){ %>
+					<option value="<%= glotrs[i].id_glotr %>"><%= ((glotrs[i].name) ? glotrs[i].name : "") %></option>
+				<% } %>
+			</select>
+
+			<input type="button" id="glotr-delete" value="Delete glotr" />
+		</div>
+		<div id="glotr-settings">
+			<%
+				var part = new EJS({url: root + "templates/settings.ejs"}).render({data: defaults, title: "New GLOTR"});
+			%>
+			<%= part %>
+		</div>
+	</form>
+</div>
