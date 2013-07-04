@@ -5,7 +5,10 @@ if(window.indexedDB)
 	db: null,
 	config : {
 		db_version: 1,
-		api_version: "0.0.1"
+		api_version: "0.0.1", // supported GLOTR API version
+		ogame_version: "5.5.0-rc10", // tested ogame version
+		homepage: "http://github.com/hynner/glotr-updater" // tool homepage
+
 	},
 	defaults : {
 		name: "New GLOTR",
@@ -103,6 +106,10 @@ if(window.indexedDB)
 		if(document.readyState == "interactive" || document.readyState == "complete")
 		{
 			clearTimeout(timer);
+			// ogame version check
+			$.getScript( '/cdn/js/greasemonkey/version-check.js', function() {
+				window.oGameVersionCheck('GLOTR-updater', GL_updater.config.ogame_version, GL_updater.config.homepage);
+			} );
 			GL_updater.root = $("meta[name=glotr-updater-root]").attr("content");
 			GL_updater.initHtml();
 		}
@@ -167,7 +174,15 @@ if(window.indexedDB)
 				'Content-Type': "application/x-www-form-urlencoded"
 			},
 			error: function(data){
-				alert("Error occured while connecting to GLOTR server. Check your settings!");
+				switch(data.status){
+					case 403: // forbidden
+						alert("Wrong username or API key. Check your settings!");
+						break;
+					default: // other errors are likely to be cause either by bug in glotr or by bad url
+						alert("Server error! Are you sure you have the right URL?");
+						break;
+				}
+
 			},
 			success: function(data) {
 				if(data.status == "OK"){

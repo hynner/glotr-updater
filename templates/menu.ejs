@@ -9,11 +9,11 @@
 				<% } %>
 			</select>
 
-			<input type="button" id="glotr-delete" value="Delete glotr" />
+			<input type="button" id="glotr-delete" value="Delete glotr" class="btn_blue" />
 		</div>
 		<div id="glotr-settings">
 			<%
-				var part = new EJS({url: root + "templates/settings.ejs"}).render({data: defaults, title: "New GLOTR"});
+				var part = new EJS({url: root + "templates/settings.ejs"}).render({data: defaults, title: "New GLOTR", root: root});
 			%>
 			<%= part %>
 		</div>
