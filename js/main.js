@@ -126,6 +126,231 @@ if(window.indexedDB)
 		$(document).on("click", "#glotr-delete", function() {GL_updater.deleteGlotr($("#glotr-current").val());});
 		$(document).on("submit", "#glotr-form", GL_updater.saveForm);
 		$(document).on("change", "#glotr-current", function(){GL_updater.getGlotr($("#glotr-current").val(), GL_updater.displayGlotrSettings);});
+		$(document).ajaxSuccess(GL_updater.proccessAjax);
+		GL_updater.proccessPage();
+
+
+	},
+	proccessPage: function (){
+		var page = document.location.href.match(/page=([^&]*)/)[1];
+		console.log(page);
+		if(page){
+			switch(page){
+				case "resources":
+					var buildings = {
+						supply22: "metal_storage",
+						supply23: "crystal_storage",
+						supply24: "deuterium_tank",
+					};
+					var params = {
+						method: "PATCH",
+						url: "universe/"+GL_updater.getMetaContent("ogame-planet-id")
+					};
+					if(GL_updater.getMetaContent("ogame-planet-type") == "moon"){
+						params.url += "/moon";
+					}
+					else{
+						// buildings not buildable on moon cannot be submitted and vice-versa
+						buildings["supply1"] =  "metal_mine";
+						buildings["supply2"] = "crystal_mine";
+						buildings["supply3"] = "deuterium_synthesizer";
+						buildings["supply4"] = "solar_plant";
+						buildings["supply12"] = "fusion_reactor";
+						buildings["supply25"] = "shielded_metal_den";
+						buildings["supply26"] = "underground_crystal_den";
+						buildings["supply27"] = "seabed_deuterium_den";
+					}
+					var fleet = {supply212: "solar_satellite"};
+					var update = {
+						resources: GL_updater.getResourcesFromPage(),
+						buildings: GL_updater.getItemsFromPage(buildings),
+						fleet: GL_updater.getItemsFromPage(fleet),
+						defence: [] // it´s gotta be [] otherwise request fails!!
+					};
+					GL_updater.massSubmitUpdate(params, update);
+					break;
+				case "station":
+					var buildings = {
+						station14: "robotics_factory",
+						station21: "shipyard",
+					};
+					var params = {
+						method: "PATCH",
+						url: "universe/"+GL_updater.getMetaContent("ogame-planet-id")
+					};
+					if(GL_updater.getMetaContent("ogame-planet-type") == "moon"){
+						params.url += "/moon";
+						buildings["station41"] = "lunar_base";
+						buildings["station42"] = "sensor_phalanx";
+						buildings["station43"] = "jump_gate";
+					}
+					else{
+						// buildings not buildable on moon cannot be submitted and vice-versa
+						buildings["station31"] =  "research_lab";
+						buildings["station34"] = "alliance_depot";
+						buildings["station44"] = "missile_silo";
+						buildings["station15"] = "nanite_factory";
+						buildings["station33"] = "terraformer";
+					}
+					var update = {
+						resources: GL_updater.getResourcesFromPage(),
+						buildings: GL_updater.getItemsFromPage(buildings),
+						fleet: [],
+						defence: [] // it´s gotta be [] otherwise request fails!!
+					};
+					GL_updater.massSubmitUpdate(params, update);
+					break;
+				case "shipyard":
+					var params = {
+						method: "PATCH",
+						url: "universe/"+GL_updater.getMetaContent("ogame-planet-id")
+					};
+					if(GL_updater.getMetaContent("ogame-planet-type") == "moon"){
+						params.url += "/moon";
+					}
+					var fleet = {
+						military204: "light_fighter",
+						military205: "heavy_fighter",
+						military206: "cruiser",
+						military207: "battleship",
+						military215: "battlecruiser",
+						military211: "bomber",
+						military213: "destroyer",
+						military214: "deathstar",
+						civil202: "small_cargo",
+						civil203: "large_cargo",
+						civil208: "colony_ship",
+						civil209: "recycler",
+						civil210: "espionage_probe",
+						civil212: "solar_satellite"
+					};
+					var update = {
+						resources: GL_updater.getResourcesFromPage(),
+						buildings: [],
+						fleet:  GL_updater.getItemsFromPage(fleet),
+						defence: [] // it´s gotta be [] otherwise request fails!!
+					};
+					GL_updater.massSubmitUpdate(params, update);
+					break;
+				case "defense":
+					var defense = {
+						defense401: "rocket_launcher",
+						defense402: "light_laser",
+						defense403: "heavy_laser",
+						defense404: "gauss_cannon",
+						defense405: "ion_cannon",
+						defense406: "plasma_turret",
+						defense407: "small_shield_dome",
+						defense408: "large_shield_dome",
+
+					};
+					var params = {
+						method: "PATCH",
+						url: "universe/"+GL_updater.getMetaContent("ogame-planet-id")
+					};
+					if(GL_updater.getMetaContent("ogame-planet-type") == "moon"){
+						params.url += "/moon";
+					}
+					else{
+						// ABMs and IPMs are neither shown nor buidable on moon
+						defense["defense502"] = "antiballistic_missiles";
+						defense["defense503"] = "interplanetary_missiles";
+					}
+					var update = {
+						resources: GL_updater.getResourcesFromPage(),
+						buildings: [],
+						fleet:  [],
+						defence: GL_updater.getItemsFromPage(defense)
+					};
+					GL_updater.massSubmitUpdate(params, update);
+					break;
+				case "fleet1":
+					console.log("here");
+					var params = {
+						method: "PATCH",
+						url: "universe/"+GL_updater.getMetaContent("ogame-planet-id")
+					};
+					if(GL_updater.getMetaContent("ogame-planet-type") == "moon"){
+						params.url += "/moon";
+					}
+					var fleet = {
+						button204: "light_fighter",
+						button205: "heavy_fighter",
+						button206: "cruiser",
+						button207: "battleship",
+						button215: "battlecruiser",
+						button211: "bomber",
+						button213: "destroyer",
+						button214: "deathstar",
+						button202: "small_cargo",
+						button203: "large_cargo",
+						button208: "colony_ship",
+						button209: "recycler",
+						button210: "espionage_probe",
+						button212: "solar_satellite"
+					};
+					var update = {
+						resources: GL_updater.getResourcesFromPage(),
+						buildings: [],
+						fleet:  GL_updater.getItemsFromPage(fleet, "#"),
+						defence: [] // it´s gotta be [] otherwise request fails!!
+					};
+					GL_updater.massSubmitUpdate(params, update);
+					break;
+				case "overview":
+				default:
+					break;
+			}
+		}
+	},
+	massSubmitUpdate: function(params, update){
+		GL_updater.getAllGlotrs(function(glotrs){
+			for(g in glotrs){
+				GL_updater.submitUpdate(glotrs[g], params, update);
+			}
+		});
+	},
+	submitUpdate: function(glotr, params, update){
+		// to avoid forgetting it
+		update.timestamp = GL_updater.getCurrentTimestamp();
+		update = JSON.stringify(update);
+		$.ajax(glotr.url+params.url,{
+			type: params.method,
+			data: update,
+			headers: {
+				Accept: "application/json",
+				'X-HTTP-AUTH-USER': glotr.username,
+				'X-HTTP-AUTH-TOKEN': CryptoJS.HmacSHA256(update, glotr.api_key),
+				'Content-Type': "application/json"
+			},
+			success: function(e){
+				console.log(e, "success");
+			},
+			error: function(e){
+				console.log(e);
+			},
+		});
+	},
+	getResourcesFromPage: function(){
+		return {
+			metal: parseInt($("#resources_metal").html().replace(/\./g, ""), 10),
+			crystal: parseInt($("#resources_crystal").html().replace(/\./g, ""), 10),
+			deuterium: parseInt($("#resources_deuterium").html().replace(/\./g, ""), 10),
+			energy: parseInt($("#resources_energy").html().replace(/\./g, ""), 10)
+		};
+
+	},
+	getItemsFromPage: function(items, prefix) {
+		prefix = typeof prefix !== 'undefined' ? prefix : ".";
+		var ret = {};
+		for(key in items){
+			var tmp = $(prefix+key+" .level").html();
+			ret[items[key]] = (tmp === undefined) ? 0 : parseInt(tmp.match(/[\d\.]*\s*$/)[0].replace(/\./g, ""),10);
+		}
+		return ret;
+	},
+	proccessAjax: function(a,b,c){
+		console.log(a,b,c);
 	},
 	displayGlotrSettings: function(glotr){
 		var html = new EJS({url: GL_updater.root + 'templates/settings.ejs'}).render({data: glotr, title: glotr.name});
@@ -137,7 +362,10 @@ if(window.indexedDB)
 	displayMenu: function (glotrs)
 	{
 		var html = new EJS({url: GL_updater.root + 'templates/menu.ejs'}).render({title: "GLOTR Updater settings", glotrs: glotrs, root: GL_updater.root, defaults: GL_updater.defaults});
-		$("#inhalt").html(html);
+        $("#inhalt").html(html);
+	},
+	getMetaContent: function(name){
+		return $("meta[name="+name+"]").attr("content");
 	},
 	getFormValues: function(){
 		var glotr = {
@@ -145,7 +373,7 @@ if(window.indexedDB)
 			name: $("#glotr-name").val().trim(),
 			username: $("#glotr-username").val().trim(),
 			api_key: $("#glotr-api-key").val().trim(),
-			uni: $("meta[name=ogame-universe]").attr("content")
+			uni: GL_updater.getMetaContent("ogame-universe")
 		};
 
 		if($("#glotr-id").val() !== "0"){

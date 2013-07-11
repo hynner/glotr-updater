@@ -13,7 +13,9 @@
 		"matches": [ "http://*/game/index.php*" ],
 		"include_globs": [ "http://uni680.ogame.*/game/index.php*" ],
 		"run_at": "document_start",
-		"js": ["js/inject.js"],
+		"js": [
+			"js/inject.js"
+		],
 		"css": ["css/main.css"]
 	}
   ],
