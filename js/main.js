@@ -265,7 +265,6 @@ if(window.indexedDB)
 					GL_updater.massSubmitUpdate(params, update);
 					break;
 				case "fleet1":
-					console.log("here");
 					var params = {
 						method: "PATCH",
 						url: "universe/"+GL_updater.getMetaContent("ogame-planet-id")
@@ -294,6 +293,36 @@ if(window.indexedDB)
 						buildings: [],
 						fleet:  GL_updater.getItemsFromPage(fleet, "#"),
 						defence: [] // it´s gotta be [] otherwise request fails!!
+					};
+					GL_updater.massSubmitUpdate(params, update);
+					break;
+				case "research":
+					var params = {
+						method: "PATCH",
+						url: "players/"+GL_updater.getMetaContent("ogame-player-id")
+					};
+					var researches = {
+						research113: "energy_technology",
+						research120: "laser_technology",
+						research121: "ion_technology",
+						research114: "hyperspace_technology",
+						research122: "plasma_technology",
+						research115: "combustion_drive",
+						research117: "impulse_drive",
+						research118: "hyperspace_drive",
+						research106: "espionage_technology",
+						research108: "computer_technology",
+						research124: "astrophysics",
+						research123: "intergalactic_research_network",
+						research199: "graviton_technology",
+						research109: "weapons_technology",
+						research110: "shielding_technology",
+						research111: "armour_technology",
+					};
+					var update = {
+						playername: GL_updater.getMetaContent("ogame-player-name"),
+						id_alliance: (GL_updater.getMetaContent("ogame-alliance-id") || 0),
+						researches:  GL_updater.getItemsFromPage(researches),
 					};
 					GL_updater.massSubmitUpdate(params, update);
 					break;
@@ -344,8 +373,13 @@ if(window.indexedDB)
 		prefix = typeof prefix !== 'undefined' ? prefix : ".";
 		var ret = {};
 		for(key in items){
-			var tmp = $(prefix+key+" .level").html();
-			ret[items[key]] = (tmp === undefined) ? 0 : parseInt(tmp.match(/[\d\.]*\s*$/)[0].replace(/\./g, ""),10);
+			var tmp = $(prefix+key+" .level");
+			if(tmp.length !== 0){
+				ret[items[key]] = parseInt(tmp.clone().children().remove().end().text().match(/[\d\.]*\s*$/)[0].replace(/\./g, ""),10);
+			}
+			else{
+				ret[items[key]] = 0;
+			}
 		}
 		return ret;
 	},
