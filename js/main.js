@@ -437,8 +437,116 @@ if(window.indexedDB)
 				};
 
 				break;
+			case "galaxyContent":
+				var table = $("#galaxytable");
+				var planets = {};
+				table.find("tr.row").each(function() {
+					var pos = $(this).find("td.position").text();
+					 // empty position
+					if($(this).find("td.planetEmpty").length !== 0){
+						planets[pos] = [];
+					}
+					// not empty position
+					else{
+						var alliance = [];
+						var alli = $(this).find("td.allytag");
+						if(alli.text().trim() !== ""){
+							alliance = {
+								id: alli.find(".allytagwrapper").attr("rel").replace("alliance", ""),
+								tag: alli.find(".allytagwrapper").clone().children().remove().end().text().trim(),
+							};
+							alliance.name = $("#alliance" + alliance.id + " h1")[0].innerText.trim();
+						}
+						var p = $(this).find("td.playername");
+						var status = "";
+						var s = p.find("span.status");
+						if(s.text() !== ""){
+							if(s.find(".status_abbr_admin").length !== 0){
+								status += "a";
+							}
+							if(s.find(".status_abbr_outlaw").length !== 0){
+								status += "o";
+							}
+							if(s.find(".status_abbr_vacation").length !== 0){
+								status += "v";
+							}
+							if(s.find(".status_abbr_banned").length !== 0){
+								status += "b";
+							}
+							if(s.find(".status_abbr_inactive").length !== 0){
+								status += "i";
+							}
+							if(s.find(".status_abbr_longinactive").length !== 0){
+								status += "I";
+							}
+						}
+						console.log(alliance);
+						var player = {
+							playername: p.find("a.tooltipRel span").text().trim(),
+							status: status,
+							alliance: alliance
+						};
+						if(player.playername === ""){
+							player.playername = GL_updater.getMetaContent("ogame-player-name");
+							player.id = GL_updater.getMetaContent("ogame-player-id");
+						}
+						else{
+							player.id = p.find("a.tooltipRel").attr("rel").replace("player", "");
+						}
+						var debris = $("#debris" + pos);
+						var df = {
+								metal: (debris.length !== 0) ? parseInt(debris.find(".debris-content")[0].innerText.match(/[\d\.]*$/)[0].replace(/\./g, ""),10) : 0,
+								crystal: (debris.length !== 0) ? parseInt(debris.find(".debris-content")[1].innerText.match(/[\d\.]*$/)[0].replace(/\./g, ""),10) : 0,
+						};
+						var moon = [];
+						var mid = $(".js_moon" + pos).attr("data-moon-id");
+						if(mid !== undefined){
+							var m = $("#moon" + pos);
+							moon = {
+								id: mid,
+								name: m.find("h1").text().trim(),
+								size: parseInt(m.find("#moonsize").text(), 10),
+								activity: GL_updater.getActivity($(".js_moon" + pos + " .activity")),
+							};
+						}
+
+						var planet = {
+							name: $(this).find("td.planetname").text().trim(),
+							id: $(this).find("td.microplanet").attr("data-planet-id"),
+							player: player,
+							df: df,
+							moon: moon,
+							activity: GL_updater.getActivity($(this).find(".microplanet .activity")),
+						};
+
+						planets[pos] = planet;
+					}
+				});
+				var update = {
+					galaxy: table.attr("data-galaxy"),
+					system: table.attr("data-system"),
+					planets: planets
+				};
+				var params = {
+					method: "POST",
+					url: "universe"
+				};
+				GL_updater.massSubmitUpdate(params, update);
+				break;
 		};
 
+	},
+	getActivity: function(act){
+		if(act.length === 0){
+			return false;
+		}
+		else{
+			var tmp = GL_updater.getCurrentTimestamp();
+			if(!act.hasClass("minute15")){
+				tmp -= parseInt(act.text(), 10)*60;
+			}
+			return tmp;
+		}
 	},
 	displayGlotrSettings: function(glotr){
 		var html = new EJS({url: GL_updater.root + 'templates/settings.ejs'}).render({data: glotr, title: glotr.name});
