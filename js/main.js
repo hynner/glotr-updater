@@ -132,8 +132,7 @@ if(window.indexedDB)
 
 	},
 	proccessPage: function (){
-		var page = document.location.href.match(/page=([^&]*)/)[1];
-		console.log(page);
+		var page = GL_updater.getQueryValueFromUrl(document.location.href, "page");
 		if(page){
 			switch(page){
 				case "resources":
@@ -383,8 +382,63 @@ if(window.indexedDB)
 		}
 		return ret;
 	},
-	proccessAjax: function(a,b,c){
-		console.log(a,b,c);
+	proccessAjax: function(e, xhr, settings){
+		console.log(settings, xhr);
+		var page = GL_updater.getQueryValueFromUrl(settings.url, "page");
+		switch(page){
+			case "allianceOverview":
+
+				var action = GL_updater.getQueryValueFromUrl(settings.url, "action");
+				switch(action){
+					// I don´t want to process these
+					case "20":
+					case "21":
+						break;
+					case "":
+					default:
+						// it has to be {} otherwise it will automatically create lots of indexes
+						var members = {};
+						// skip header and footer
+						var list = $("#member-list tr");
+						if(!list) break; // current player doesn´t see member list at all
+						list.slice(1, -1).each(function(){
+							var id = GL_updater.getQueryValueFromUrl($(this).find(".member_score a").attr("href"), "searchRelId");
+							var on = null;
+							var cols = $(this).find("td");
+							if(cols.length === 8){
+								var span = $(cols[6]).find("span");
+								// online
+								if(span.hasClass("undermark")){
+									on = GL_updater.getCurrentTimestamp();
+								}
+								// offline
+								else if(span.hasClass("overmark")){
+									on = false;
+								}
+								// was online less than an hour ago
+								else{
+									on = GL_updater.getCurrentTimestamp() - parseInt(span.text(), 10)*60;
+								}
+							}
+							members[id] = on;
+						});
+
+						var params = {
+							method: "POST",
+							url: "alliances/"+GL_updater.getMetaContent("ogame-alliance-id")
+						};
+						var update = {
+							/** @TODO update alliance as well */
+							alliance: [],
+							members: members
+						};
+						GL_updater.massSubmitUpdate(params, update);
+						break;
+				};
+
+				break;
+		};
+
 	},
 	displayGlotrSettings: function(glotr){
 		var html = new EJS({url: GL_updater.root + 'templates/settings.ejs'}).render({data: glotr, title: glotr.name});
@@ -400,6 +454,11 @@ if(window.indexedDB)
 	},
 	getMetaContent: function(name){
 		return $("meta[name="+name+"]").attr("content");
+	},
+	getQueryValueFromUrl: function(url, parameter){
+		var r = new RegExp(parameter + "=([^&]*)");
+		var m = url.match(r);
+		return (m) ? m[1] : "";
 	},
 	getFormValues: function(){
 		var glotr = {
