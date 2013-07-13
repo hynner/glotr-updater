@@ -540,6 +540,10 @@ if(window.indexedDB)
 		if(act.length === 0){
 			return false;
 		}
+		// user has detailed activity disabled => activity isn´t precise so send activity uknown = null
+		else if(act.hasClass("minute60")){
+			return null;
+		}
 		else{
 			var tmp = GL_updater.getCurrentTimestamp();
 			if(!act.hasClass("minute15")){
