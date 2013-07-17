@@ -10,7 +10,7 @@
   ],
   "content_scripts":[
 	{
-		"matches": [ "http://*/game/index.php*" ],
+		"matches": [ "http://uni680.ogame.org/game/index.php*" ],
 		"include_globs": [ "http://uni680.ogame.*/game/index.php*" ],
 		"run_at": "document_start",
 		"js": [

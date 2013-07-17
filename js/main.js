@@ -4,9 +4,9 @@ if(window.indexedDB)
 	var GL_updater = {
 	db: null,
 	config : {
-		db_version: 1,
+		db_version: 3,
 		api_version: "0.0.1", // supported GLOTR API version
-		ogame_version: "5.5.0-rc10", // tested ogame version
+		ogame_version: "5.5.2", // tested ogame version
 		homepage: "http://github.com/hynner/glotr-updater" // tool homepage
 
 	},
@@ -15,6 +15,96 @@ if(window.indexedDB)
 		url: "http://your.domain/path/to/glotr/www/Api/",
 		username: "",
 		api_key: ""
+	},
+	mapping: {
+		techs: {
+			moon_building: {
+				14:"robotics_factory",
+				21:"shipyard",
+				22:"metal_storage",
+				23:"crystal_storage",
+				24:"deuterium_tank",
+				41:"lunar_base",
+				42:"sensor_phalanx",
+				43:"jump_gate",
+			},
+			planet_building: {
+				1:"metal_mine",
+				2:"crystal_mine",
+				3:"deuterium_synthesizer",
+				4:"solar_plant",
+				12:"fusion_reactor",
+				14:"robotics_factory",
+				15:"nanite_factory",
+				21:"shipyard",
+				22:"metal_storage",
+				23:"crystal_storage",
+				24:"deuterium_tank",
+				25:"shielded_metal_den",
+				26:"underground_crystal_den",
+				27:"seabed_deuterium_den",
+				31:"research_lab",
+				33:"terraformer",
+				34:"alliance_depot",
+				44:"missile_silo"
+			},
+			research: {
+				106:"espionage_technology",
+				108:"computer_technology",
+				109:"weapons_technology",
+				110:"shielding_technology",
+				111:"armour_technology",
+				113:"energy_technology",
+				114:"hyperspace_technology",
+				115:"combustion_drive",
+				117:"impulse_drive",
+				118:"hyperspace_drive",
+				120:"laser_technology",
+				121:"ion_technology",
+				122:"plasma_technology",
+				123:"intergalactic_research_network",
+				124:"astrophysics",
+				199:"graviton_technology"
+			},
+			fleet: {
+				202:"small_cargo",
+				203:"large_cargo",
+				204:"light_fighter",
+				205:"heavy_fighter",
+				206:"cruiser",
+				207:"battleship",
+				208:"colony_ship",
+				209:"recycler",
+				210:"espionage_probe",
+				211:"bomber",
+				212:"solar_satellite",
+				213:"destroyer",
+				214:"deathstar",
+				215:"battlecruiser"
+			},
+			planet_defence: {
+				401:"rocket_launcher",
+				402:"light_laser",
+				403:"heavy_laser",
+				404:"gauss_cannon",
+				405:"ion_cannon",
+				406:"plasma_turret",
+				407:"small_shield_dome",
+				408:"large_shield_dome",
+				502:"antiballistic_missiles",
+				503:"interplanetary_missiles"
+			},
+			moon_defence: {
+				401:"rocket_launcher",
+				402:"light_laser",
+				403:"heavy_laser",
+				404:"gauss_cannon",
+				405:"ion_cannon",
+				406:"plasma_turret",
+				407:"small_shield_dome",
+				408:"large_shield_dome"
+			}
+		}
 	},
 	root : null,
 	addGlotr: function (glotr){
@@ -83,6 +173,60 @@ if(window.indexedDB)
 		};
 		trans.oncomplete = function (e){
 			callback(glotrs);
+		};
+
+	},
+	downloadLocalization: function(callback){
+		$.ajax("../api/localization.xml", {
+			type: "GET",
+			dataType: "xml",
+			success: function(data){
+				var res = {
+					techs: {},
+					missions: {}
+				};
+				$(data).find("techs name").each(function() {
+					res.techs[$(this).attr("id")] = $(this).text();
+				});
+				callback(res);
+			}
+		});
+	},
+	getTechs: function (callback)
+	{
+		var trans = GL_updater.db.transaction(["glotr_techs"], "readonly");
+		var store = trans.objectStore("glotr_techs");
+		var request = store.count();
+		var techs = {};
+		request.onsuccess = function(e){
+			var count = this.result;
+			if(count === 0){
+				techs = GL_updater.downloadLocalization(function(data){
+					techs = data.techs;
+					var store = GL_updater.db.transaction(["glotr_techs"], "readwrite").objectStore("glotr_techs");
+					for(var id in techs){
+						var tmp = {
+							id_tech: id,
+							name: techs[id]
+						};
+						store.put(tmp);
+					}
+					callback(techs);
+				});
+			}
+			else{
+				var request = store.openCursor();
+				request.onsuccess = function(e){
+					var cursor = this.result;
+					if(cursor && cursor.value){
+						techs[cursor.value.id_tech] = cursor.value.name;
+						cursor.continue();
+					}
+				};
+			}
+		};
+		trans.oncomplete = function (e){
+			callback(techs);
 		};
 
 	},
@@ -368,13 +512,17 @@ if(window.indexedDB)
 		};
 
 	},
+	string2Number: function(str){
+		// as seen on uni680, int may not be long enough
+		return str.replace(/\./g, "");
+	},
 	getItemsFromPage: function(items, prefix) {
 		prefix = typeof prefix !== 'undefined' ? prefix : ".";
 		var ret = {};
 		for(key in items){
 			var tmp = $(prefix+key+" .level");
 			if(tmp.length !== 0){
-				ret[items[key]] = parseInt(tmp.clone().children().remove().end().text().match(/[\d\.]*\s*$/)[0].replace(/\./g, ""),10);
+				ret[items[key]] = GL_updater.string2Number(tmp.clone().children().remove().end().text().match(/[\d\.]*\s*$/)[0]);
 			}
 			else{
 				ret[items[key]] = 0;
@@ -480,7 +628,6 @@ if(window.indexedDB)
 								status += "I";
 							}
 						}
-						console.log(alliance);
 						var player = {
 							playername: p.find("a.tooltipRel span").text().trim(),
 							status: status,
@@ -533,8 +680,123 @@ if(window.indexedDB)
 				};
 				GL_updater.massSubmitUpdate(params, update);
 				break;
+			case "messages":
+				// exclude header and footer
+				//var messages = $("#mailz > tbody > tr").slice(1, -1);
+				// if show full espionage reports is enabled
+				var messages = $(xhr.responseText);
+				var espionages = messages.find("#mailz > tbody > tr[id^='spioDetails']");
+				if(espionages.length > 0){
+					GL_updater.getTechs(function(techs) {
+						var reports = {};
+						espionages.each(function() {
+							var id = parseInt($(this).attr("id").replace("spioDetails_", ""));
+
+							var time = GL_updater.dateToTimestamp(messages.find("#TR"+id+" .date").text());
+
+							// if there is any activity there is a red number in activity text
+							var activity = $($(this).find(".aktiv	tr")[1]).find("font");
+							if(activity.length === 0){
+								activity = false;
+							}
+							else{
+								activity = parseInt(activity.text());
+								if(activity === 15){
+									activity = 0;
+								}
+								activity = time - activity*60;
+							}
+							var coords = $(this).find(".material a").text().replace(/\[|\]/g, "").split(":");
+							var moon = $(this).find(".material figure.moon").length > 0;
+							var items = $(this).find(".fleetdefbuildings");
+							var depth = items.length;
+							var fleet = [];
+							var defence = [];
+							var building = [];
+							var research = [];
+							var prefix = ((moon) ? "moon_" : "planet_");
+							switch(depth){
+								case 4:
+									research = GL_updater.extractEspionageValues(items[3], techs, GL_updater.mapping.techs.research);
+								case 3:
+									building = GL_updater.extractEspionageValues(items[2], techs, GL_updater.mapping.techs[prefix + "building"]);
+								case 2:
+									defence = GL_updater.extractEspionageValues(items[1], techs, GL_updater.mapping.techs[prefix + "defence"]);
+								case 1:
+									fleet = GL_updater.extractEspionageValues(items[0], techs, GL_updater.mapping.techs.fleet);
+								case 0:
+							}
+							depth = ["resources", "fleet","defence", "buidling", "research"][depth];
+							var resources = $(this).find(".material .areadetail .fragment td");
+
+							var report = {
+								timestamp: time,
+								activity: activity,
+								coordinates: {
+									galaxy: coords[0],
+									system: coords[1],
+									position: coords[2],
+									moon: moon
+								},
+								scan_depth: depth,
+								playername: $(this).find(".material .area span:last-of-type").text(),
+								resources: {
+									metal: GL_updater.string2Number(resources[1].innerText.trim()),
+									crystal: GL_updater.string2Number(resources[3].innerText.trim()),
+									deuterium: GL_updater.string2Number(resources[5].innerText.trim()),
+									energy: GL_updater.string2Number(resources[7].innerText.trim())
+								},
+								fleet: fleet,
+								defence: defence,
+								building: building,
+								research: research
+							};
+							reports[id] = report;
+						});
+						var update = {
+							espionage_reports: reports,
+						};
+						var params = {
+							method: "POST",
+							url: "messages"
+						};
+						GL_updater.massSubmitUpdate(params, update);
+					});
+
+				}
+				break;
 		};
 
+	},
+	getGlotrKey: function(str, techs, mappings){
+		for(var k in techs){
+			if(str === techs[k]){
+				return mappings[k];
+			}
+		}
+	},
+	extractEspionageValues: function(part, techs, mappings){
+		var ret = {};
+		cells = $(part).find("td");
+		for(var i = 0; i < cells.length; i += 2){
+			if(cells[i].innerText.trim() !== ""){
+				ret[GL_updater.getGlotrKey(cells[i].innerText, techs, mappings)] = GL_updater.string2Number(cells[i+1].innerText);
+			}
+		}
+		for(var k in mappings){
+			if(!(mappings[k] in ret)){
+				ret[mappings[k]] = 0;
+			}
+		}
+		return ret;
+	},
+	dateToTimestamp: function(date){
+		var time = date.split(" ");
+		date = time[0].split(".");
+		time = time[1].split(":");
+		time = new Date(date[2], date[1]-1, date[0], time[0], time[1], time[2]);
+		// javascript has timestamps in miliseconds
+		return time.getTime()/1000;
 	},
 	getActivity: function(act){
 		if(act.length === 0){
@@ -656,6 +918,8 @@ if(window.indexedDB)
 			var db = event.target.result;
 			// Create an objectStore for this database
 			var glotrStore = db.createObjectStore("glotrs", { keyPath: "id_glotr" });
+			var a = db.createObjectStore("glotr_techs", { keyPath: "id_tech" });
+			var b = db.createObjectStore("glotr_missions", { keyPath: "id_mission" });
 		};
 	}
 
