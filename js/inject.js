@@ -1,5 +1,5 @@
 
-var scripts = ["js/lib/crypto-js/hmac-sha256.js", "js/lib/ejs/ejs_production.js", "js/lib/ejs/view.js", "js/main.js"];
+var scripts = ["js/lib/crypto-js/hmac-sha256.js", "js/lib/timezone-js/date.js", "js/lib/ejs/ejs_production.js", "js/lib/ejs/view.js", "js/main.js"];
 for(sc in scripts)
 {
 	var s = document.createElement('script');

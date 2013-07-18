@@ -107,6 +107,7 @@ if(window.indexedDB)
 		}
 	},
 	root : null,
+	serverProperties: {},
 	addGlotr: function (glotr){
 		var trans = GL_updater.db.transaction(["glotrs"], "readonly");
 		var store = trans.objectStore("glotrs");
@@ -192,6 +193,21 @@ if(window.indexedDB)
 			}
 		});
 	},
+	downloadServerData: function(){
+		$.ajax("../api/serverData.xml", {
+			type: "GET",
+			dataType: "xml",
+			success: function(data){
+				var nodes =  data.childNodes[0].childNodes;
+				for(var k in nodes){
+					if(nodes[k].tagName !== undefined){
+						GL_updater.serverProperties[nodes[k].tagName] = nodes[k].textContent;
+					}
+				}
+				localStorage["GLOTR_SERVER_PROPERTIES"] = JSON.stringify(GL_updater.serverProperties);
+			}
+		});
+	},
 	getTechs: function (callback)
 	{
 		var trans = GL_updater.db.transaction(["glotr_techs"], "readonly");
@@ -255,6 +271,17 @@ if(window.indexedDB)
 				window.oGameVersionCheck('GLOTR-updater', GL_updater.config.ogame_version, GL_updater.config.homepage);
 			} );
 			GL_updater.root = $("meta[name=glotr-updater-root]").attr("content");
+			timezoneJS.timezone.zoneFileBasePath = GL_updater.root +  'js/lib/timezone-js/timezones';
+			timezoneJS.timezone.defaultZoneFile = 'europe';
+			timezoneJS.timezone.init();
+			var server = localStorage.getItem("GLOTR_SERVER_PROPERTIES");
+			if(server === null){
+				GL_updater.downloadServerData();
+			}
+			else{
+				GL_updater.serverProperties = JSON.parse(server);
+			}
+
 			GL_updater.initHtml();
 		}
 		else
@@ -794,7 +821,7 @@ if(window.indexedDB)
 		var time = date.split(" ");
 		date = time[0].split(".");
 		time = time[1].split(":");
-		time = new Date(date[2], date[1]-1, date[0], time[0], time[1], time[2]);
+		time = new timezoneJS.Date(date[2], date[1]-1, date[0], time[0], time[1], time[2],GL_updater.serverProperties.timezone);
 		// javascript has timestamps in miliseconds
 		return time.getTime()/1000;
 	},
@@ -855,6 +882,7 @@ if(window.indexedDB)
 		GL_updater.verify(glotr);
 	},
 	getCurrentTimestamp: function(){
+		// there is no need to use timezoneJS here, because getTime will return correct UTC timstamp
 		var d = new Date();
 		return parseInt(d.getTime()/1000);
 	},
