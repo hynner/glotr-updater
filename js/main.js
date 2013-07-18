@@ -108,6 +108,7 @@ if(window.indexedDB)
 	},
 	root : null,
 	serverProperties: {},
+	techs: null,
 	addGlotr: function (glotr){
 		var trans = GL_updater.db.transaction(["glotrs"], "readonly");
 		var store = trans.objectStore("glotrs");
@@ -210,40 +211,48 @@ if(window.indexedDB)
 	},
 	getTechs: function (callback)
 	{
-		var trans = GL_updater.db.transaction(["glotr_techs"], "readonly");
-		var store = trans.objectStore("glotr_techs");
-		var request = store.count();
-		var techs = {};
-		request.onsuccess = function(e){
-			var count = this.result;
-			if(count === 0){
-				techs = GL_updater.downloadLocalization(function(data){
-					techs = data.techs;
-					var store = GL_updater.db.transaction(["glotr_techs"], "readwrite").objectStore("glotr_techs");
-					for(var id in techs){
-						var tmp = {
-							id_tech: id,
-							name: techs[id]
-						};
-						store.put(tmp);
-					}
-					callback(techs);
-				});
-			}
-			else{
-				var request = store.openCursor();
-				request.onsuccess = function(e){
-					var cursor = this.result;
-					if(cursor && cursor.value){
-						techs[cursor.value.id_tech] = cursor.value.name;
-						cursor.continue();
-					}
-				};
-			}
-		};
-		trans.oncomplete = function (e){
-			callback(techs);
-		};
+		if(GL_updater.techs === null){
+			var trans = GL_updater.db.transaction(["glotr_techs"], "readonly");
+			var store = trans.objectStore("glotr_techs");
+			var request = store.count();
+			var techs = {};
+			request.onsuccess = function(e){
+				var count = this.result;
+				if(count === 0){
+					techs = GL_updater.downloadLocalization(function(data){
+						techs = data.techs;
+						var store = GL_updater.db.transaction(["glotr_techs"], "readwrite").objectStore("glotr_techs");
+						for(var id in techs){
+							var tmp = {
+								id_tech: id,
+								name: techs[id]
+							};
+							store.put(tmp);
+						}
+						GL_updater.techs = techs;
+						callback(techs);
+					});
+				}
+				else{
+					var request = store.openCursor();
+					request.onsuccess = function(e){
+						var cursor = this.result;
+						if(cursor && cursor.value){
+							techs[cursor.value.id_tech] = cursor.value.name;
+							cursor.continue();
+						}
+					};
+				}
+			};
+			trans.oncomplete = function (e){
+				GL_updater.techs = techs;
+				callback(techs);
+			};
+		}
+		else{
+			callback(GL_updater.techs);
+		}
+
 
 	},
 	getGlotr: function(id_glotr, callback){
@@ -721,64 +730,8 @@ if(window.indexedDB)
 
 							var time = GL_updater.dateToTimestamp(messages.find("#TR"+id+" .date").text());
 
-							// if there is any activity there is a red number in activity text
-							var activity = $($(this).find(".aktiv	tr")[1]).find("font");
-							if(activity.length === 0){
-								activity = false;
-							}
-							else{
-								activity = parseInt(activity.text());
-								if(activity === 15){
-									activity = 0;
-								}
-								activity = time - activity*60;
-							}
-							var coords = $(this).find(".material a").text().replace(/\[|\]/g, "").split(":");
-							var moon = $(this).find(".material figure.moon").length > 0;
-							var items = $(this).find(".fleetdefbuildings");
-							var depth = items.length;
-							var fleet = [];
-							var defence = [];
-							var building = [];
-							var research = [];
-							var prefix = ((moon) ? "moon_" : "planet_");
-							switch(depth){
-								case 4:
-									research = GL_updater.extractEspionageValues(items[3], techs, GL_updater.mapping.techs.research);
-								case 3:
-									building = GL_updater.extractEspionageValues(items[2], techs, GL_updater.mapping.techs[prefix + "building"]);
-								case 2:
-									defence = GL_updater.extractEspionageValues(items[1], techs, GL_updater.mapping.techs[prefix + "defence"]);
-								case 1:
-									fleet = GL_updater.extractEspionageValues(items[0], techs, GL_updater.mapping.techs.fleet);
-								case 0:
-							}
-							depth = ["resources", "fleet","defence", "buidling", "research"][depth];
-							var resources = $(this).find(".material .areadetail .fragment td");
 
-							var report = {
-								timestamp: time,
-								activity: activity,
-								coordinates: {
-									galaxy: coords[0],
-									system: coords[1],
-									position: coords[2],
-									moon: moon
-								},
-								scan_depth: depth,
-								playername: $(this).find(".material .area span:last-of-type").text(),
-								resources: {
-									metal: GL_updater.string2Number(resources[1].innerText.trim()),
-									crystal: GL_updater.string2Number(resources[3].innerText.trim()),
-									deuterium: GL_updater.string2Number(resources[5].innerText.trim()),
-									energy: GL_updater.string2Number(resources[7].innerText.trim())
-								},
-								fleet: fleet,
-								defence: defence,
-								building: building,
-								research: research
-							};
-							reports[id] = report;
+							reports[id] = GL_updater.proccessEspionageReport(id, time,techs, $(this));
 						});
 						var update = {
 							espionage_reports: reports,
@@ -792,8 +745,93 @@ if(window.indexedDB)
 
 				}
 				break;
+			case "showmessage":
+				var id = GL_updater.getQueryValueFromUrl(settings.url, "msg_id");
+				var message = $(xhr.responseText).filter(".showmessage");
+				var time = GL_updater.dateToTimestamp(message.find(".infohead table td:last-child")[3].innerText);
+				var params = {
+					method: "POST",
+					url: "messages"
+				};
+				if(GL_updater.isEspionageReport(message)){
+					GL_updater.getTechs(function(techs) {
+						var report = GL_updater.proccessEspionageReport(id, time, techs, message.find(".textWrapper"));
+						var update = {
+							espionage_reports: {}
+						};
+						update.espionage_reports[id] = report;
+						GL_updater.massSubmitUpdate(params, update);
+					});
+				}
+				else{
+					console.log("false");
+				}
+				break;
 		};
 
+	},
+	isEspionageReport: function(message){
+		return (message.find(".spy").length > 0);
+	},
+	proccessEspionageReport: function(id, time, techs, report){
+		// if there is any activity there is a red number in activity text
+		var activity = $(report.find(".aktiv	tr")[1]).find("font");
+		if(activity.length === 0){
+			activity = false;
+		}
+		else{
+			activity = parseInt(activity.text());
+			if(activity === 15){
+				activity = 0;
+			}
+			activity = time - activity*60;
+		}
+		var coords = report.find(".material a").text().replace(/\[|\]/g, "").split(":");
+		var moon = report.find(".material figure.moon").length > 0;
+		var items = report.find(".fleetdefbuildings");
+		var depth = items.length;
+		var fleet = [];
+		var defence = [];
+		var building = [];
+		var research = [];
+		var prefix = ((moon) ? "moon_" : "planet_");
+		switch(depth){
+			case 4:
+				research = GL_updater.extractEspionageValues(items[3], techs, GL_updater.mapping.techs.research);
+			case 3:
+				building = GL_updater.extractEspionageValues(items[2], techs, GL_updater.mapping.techs[prefix + "building"]);
+			case 2:
+				defence = GL_updater.extractEspionageValues(items[1], techs, GL_updater.mapping.techs[prefix + "defence"]);
+			case 1:
+				fleet = GL_updater.extractEspionageValues(items[0], techs, GL_updater.mapping.techs.fleet);
+			case 0:
+		}
+		depth = ["resources", "fleet","defence", "buidling", "research"][depth];
+		var resources = report.find(".material .areadetail .fragment td");
+
+		var report = {
+			timestamp: time,
+			activity: activity,
+			coordinates: {
+				galaxy: coords[0],
+				system: coords[1],
+				position: coords[2],
+				moon: moon
+			},
+			scan_depth: depth,
+			playername: report.find(".material .area span:last-of-type").text(),
+			resources: {
+				metal: GL_updater.string2Number(resources[1].innerText.trim()),
+				crystal: GL_updater.string2Number(resources[3].innerText.trim()),
+				deuterium: GL_updater.string2Number(resources[5].innerText.trim()),
+				energy: GL_updater.string2Number(resources[7].innerText.trim())
+			},
+			fleet: fleet,
+			defence: defence,
+			building: building,
+			research: research
+		};
+		return report;
 	},
 	getGlotrKey: function(str, techs, mappings){
 		for(var k in techs){
