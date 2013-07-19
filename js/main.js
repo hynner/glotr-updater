@@ -779,8 +779,18 @@ if(window.indexedDB)
 					};
 					GL_updater.massSubmitUpdate(params, update);
 				}
-				else{
-					console.log("false");
+				else if(GL_updater.isForeignEspionage(message)){
+					var text = message.find(".note").text();
+					var p_start = text.indexOf("]")+3;
+					var playername = text.substr(p_start).substr(0,text.substr(p_start).indexOf(")"));
+					var update = {
+						scans: {}
+					};
+					update.scans[id] = {
+						playername: playername,
+						timestamp: time
+					};
+					GL_updater.massSubmitUpdate(params, update);
 				}
 				break;
 		};
@@ -792,6 +802,10 @@ if(window.indexedDB)
 	isPersonalMessage: function(message){
 		// it counts circs as PMs too, because GLOTR is only interested in activities
 		return (message.find(".notify").length > 0);
+	},
+	isForeignEspionage: function(message){
+		// that % is to recognize it from return messages, foreign espionage always says what was the chance of counter-espionage
+		return (message.find(".note figure").length === 2 && message.find(".note").text().trim().substr(-1,1) === "%");
 	},
 	proccessEspionageReport: function(id, time, techs, report){
 		// if there is any activity there is a red number in activity text
