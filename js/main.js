@@ -763,6 +763,22 @@ if(window.indexedDB)
 						GL_updater.massSubmitUpdate(params, update);
 					});
 				}
+				else if(GL_updater.isPersonalMessage(message)){
+					var update = {
+						messages: {}
+					};
+					// this is for circ
+					var playername = message.find(".textWrapper .player").text().trim();
+					if(playername === ""){
+						// this is for PM, because in circ there is something like alliance[TAG]
+						playername = message.find(".playerName").clone().children().remove().end().text().trim();
+					}
+					update.messages[id] = {
+						playername: playername,
+						timestamp: time
+					};
+					GL_updater.massSubmitUpdate(params, update);
+				}
 				else{
 					console.log("false");
 				}
@@ -772,6 +788,10 @@ if(window.indexedDB)
 	},
 	isEspionageReport: function(message){
 		return (message.find(".spy").length > 0);
+	},
+	isPersonalMessage: function(message){
+		// it counts circs as PMs too, because GLOTR is only interested in activities
+		return (message.find(".notify").length > 0);
 	},
 	proccessEspionageReport: function(id, time, techs, report){
 		// if there is any activity there is a red number in activity text
