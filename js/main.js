@@ -4,7 +4,7 @@ if(window.indexedDB)
 	var GL_updater = {
 	db: null,
 	config : {
-		db_version: 3,
+		db_version: 4,
 		api_version: "0.0.1", // supported GLOTR API version
 		ogame_version: "5.5.2", // tested ogame version
 		homepage: "http://github.com/hynner/glotr-updater" // tool homepage
@@ -108,7 +108,7 @@ if(window.indexedDB)
 	},
 	root : null,
 	serverProperties: {},
-	techs: null,
+	techs: {},
 	addGlotr: function (glotr){
 		var trans = GL_updater.db.transaction(["glotrs"], "readonly");
 		var store = trans.objectStore("glotrs");
@@ -178,7 +178,7 @@ if(window.indexedDB)
 		};
 
 	},
-	downloadLocalization: function(callback){
+	downloadLocalization: function(){
 		$.ajax("../api/localization.xml", {
 			type: "GET",
 			dataType: "xml",
@@ -190,7 +190,11 @@ if(window.indexedDB)
 				$(data).find("techs name").each(function() {
 					res.techs[$(this).attr("id")] = $(this).text();
 				});
-				callback(res);
+				$(data).find("missions name").each(function() {
+					res.missions[$(this).attr("id")] = $(this).text();
+				});
+				GL_updater.techs = res;
+				localStorage["GLOTR_TECHS"] = JSON.stringify(GL_updater.techs);
 			}
 		});
 	},
@@ -208,52 +212,6 @@ if(window.indexedDB)
 				localStorage["GLOTR_SERVER_PROPERTIES"] = JSON.stringify(GL_updater.serverProperties);
 			}
 		});
-	},
-	getTechs: function (callback)
-	{
-		if(GL_updater.techs === null){
-			var trans = GL_updater.db.transaction(["glotr_techs"], "readonly");
-			var store = trans.objectStore("glotr_techs");
-			var request = store.count();
-			var techs = {};
-			request.onsuccess = function(e){
-				var count = this.result;
-				if(count === 0){
-					techs = GL_updater.downloadLocalization(function(data){
-						techs = data.techs;
-						var store = GL_updater.db.transaction(["glotr_techs"], "readwrite").objectStore("glotr_techs");
-						for(var id in techs){
-							var tmp = {
-								id_tech: id,
-								name: techs[id]
-							};
-							store.put(tmp);
-						}
-						GL_updater.techs = techs;
-						callback(techs);
-					});
-				}
-				else{
-					var request = store.openCursor();
-					request.onsuccess = function(e){
-						var cursor = this.result;
-						if(cursor && cursor.value){
-							techs[cursor.value.id_tech] = cursor.value.name;
-							cursor.continue();
-						}
-					};
-				}
-			};
-			trans.oncomplete = function (e){
-				GL_updater.techs = techs;
-				callback(techs);
-			};
-		}
-		else{
-			callback(GL_updater.techs);
-		}
-
-
 	},
 	getGlotr: function(id_glotr, callback){
 		id_glotr = parseInt(id_glotr, 10);
@@ -289,6 +247,13 @@ if(window.indexedDB)
 			}
 			else{
 				GL_updater.serverProperties = JSON.parse(server);
+			}
+			var techs = localStorage.getItem("GLOTR_TECHS");
+			if(techs === null){
+				GL_updater.downloadLocalization();
+			}
+			else{
+				GL_updater.techs = JSON.parse(techs);
 			}
 
 			GL_updater.initHtml();
@@ -723,26 +688,24 @@ if(window.indexedDB)
 				var messages = $(xhr.responseText);
 				var espionages = messages.find("#mailz > tbody > tr[id^='spioDetails']");
 				if(espionages.length > 0){
-					GL_updater.getTechs(function(techs) {
-						var reports = {};
-						espionages.each(function() {
-							var id = parseInt($(this).attr("id").replace("spioDetails_", ""));
+					var techs = GL_updater.techs.techs;
+					var reports = {};
+					espionages.each(function() {
+						var id = parseInt($(this).attr("id").replace("spioDetails_", ""));
 
-							var time = GL_updater.dateToTimestamp(messages.find("#TR"+id+" .date").text());
+						var time = GL_updater.dateToTimestamp(messages.find("#TR"+id+" .date").text());
 
 
-							reports[id] = GL_updater.proccessEspionageReport(id, time,techs, $(this));
-						});
-						var update = {
-							espionage_reports: reports,
-						};
-						var params = {
-							method: "POST",
-							url: "messages"
-						};
-						GL_updater.massSubmitUpdate(params, update);
+						reports[id] = GL_updater.proccessEspionageReport(id, time,techs, $(this));
 					});
-
+					var update = {
+						espionage_reports: reports,
+					};
+					var params = {
+						method: "POST",
+						url: "messages"
+					};
+					GL_updater.massSubmitUpdate(params, update);
 				}
 				break;
 			case "showmessage":
@@ -754,14 +717,13 @@ if(window.indexedDB)
 					url: "messages"
 				};
 				if(GL_updater.isEspionageReport(message)){
-					GL_updater.getTechs(function(techs) {
-						var report = GL_updater.proccessEspionageReport(id, time, techs, message.find(".textWrapper"));
-						var update = {
-							espionage_reports: {}
-						};
-						update.espionage_reports[id] = report;
-						GL_updater.massSubmitUpdate(params, update);
-					});
+					var techs = GL_updater.techs.techs;
+					var report = GL_updater.proccessEspionageReport(id, time, techs, message.find(".textWrapper"));
+					var update = {
+						espionage_reports: {}
+					};
+					update.espionage_reports[id] = report;
+					GL_updater.massSubmitUpdate(params, update);
 				}
 				else if(GL_updater.isPersonalMessage(message)){
 					var update = {
@@ -1017,9 +979,14 @@ if(window.indexedDB)
 		request.onupgradeneeded = function(event){
 			var db = event.target.result;
 			// Create an objectStore for this database
-			var glotrStore = db.createObjectStore("glotrs", { keyPath: "id_glotr" });
-			var a = db.createObjectStore("glotr_techs", { keyPath: "id_tech" });
-			var b = db.createObjectStore("glotr_missions", { keyPath: "id_mission" });
+			try{
+				var glotrStore = db.createObjectStore("glotrs", { keyPath: "id_glotr" });
+			}
+			catch(e)
+			{
+				// store already exists
+			}
+
 		};
 	}
 
