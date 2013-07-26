@@ -755,6 +755,16 @@ if(window.indexedDB)
 					GL_updater.massSubmitUpdate(params, update);
 				}
 				break;
+			case "phalanx":
+				var report = $(xhr.responseText.trim()).filter("#phalanxWrap");
+				var empty = (report.find("#eventContent").children().length === 0);
+				var coordinates = {
+					galaxy: GL_updater.getQueryValueFromUrl(settings.url, "galaxy"),
+					system: GL_updater.getQueryValueFromUrl(settings.url, "system"),
+					position: GL_updater.getQueryValueFromUrl(settings.url, "position")
+				};
+				console.log(coordinates);
+				break;
 		};
 
 	},
